@@ -137,6 +137,19 @@ Dual<T> exp(const Dual<T>& x) {
     return Dual<T>(e, e * x.dual);
 }
 
+template <typename T>
+Dual<T> log(const Dual<T>& x) {
+    return Dual<T>(std::log(x.real), x.dual / x.real);
+}
+
+template<typename T>
+Dual<T> sigmoid(const Dual<T>& x) {
+    // 1 / (1 + e^(-x));
+    Dual<T> e_x = exp(-x);
+    Dual<T> one = Dual<double>(1.0);
+    return one / (one + e_x);
+}
+
 // Compute derivative using automatic differentiation
 template<typename T>
 T compute_derivative(T x) {
