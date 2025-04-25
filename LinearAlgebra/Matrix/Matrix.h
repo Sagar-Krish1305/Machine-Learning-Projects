@@ -1,73 +1,57 @@
-// Linear Algebra/Matrix/Matrix.h
 #ifndef MATRIX_H
 #define MATRIX_H
 
 #include <iostream>
 #include <stdexcept>
-#include <cstring> // For std::memset
+#include <vector>
+#include "../../RandomGenerator/RandomGenerator.h"
 
 template <typename T>
 class Matrix {
 private:
     size_t rows_;
     size_t cols_;
-    T* data_; // Raw array for matrix elements (row-major)
+    std::vector<T> data_; // Use std::vector for automatic memory management
 
 public:
     // Default constructor
-    Matrix() : rows_(0), cols_(0), data_(nullptr) {}
+    Matrix() : rows_(0), cols_(0), data_() {}
 
     // Constructor with dimensions
-    Matrix(size_t rows, size_t cols) : rows_(rows), cols_(cols), data_(nullptr) {
+    Matrix(size_t rows, size_t cols) : rows_(rows), cols_(cols), data_(rows * cols) {
         if (rows == 0 || cols == 0) {
             throw std::invalid_argument("Matrix dimensions must be positive");
         }
-        data_ = static_cast<T*>(malloc(rows * cols * sizeof(T)));
-        if (!data_) {
-            throw std::bad_alloc();
-        }
-        // Initialize elements to 0 (safe for numeric types)
-        std::memset(data_, 0, rows * cols * sizeof(T));
+        // std::vector initializes elements with default constructor (T())
     }
 
     // Copy constructor
-    Matrix(const Matrix& other) : rows_(other.rows_), cols_(other.cols_), data_(nullptr) {
-        if (other.data_) {
-            data_ = static_cast<T*>(malloc(rows_ * cols_ * sizeof(T)));
-            if (!data_) {
-                throw std::bad_alloc();
-            }
-            std::memcpy(data_, other.data_, rows_ * cols_ * sizeof(T));
-        }
-    }
+    Matrix(const Matrix& other) : rows_(other.rows_), cols_(other.cols_), data_(other.data_) {}
 
     // Move constructor
-    Matrix(Matrix&& other) noexcept : rows_(other.rows_), cols_(other.cols_), data_(other.data_) {
+    Matrix(Matrix&& other) noexcept : rows_(other.rows_), cols_(other.cols_), data_(std::move(other.data_)) {
         other.rows_ = 0;
         other.cols_ = 0;
-        other.data_ = nullptr;
     }
 
-    // Destructor
-    ~Matrix() {
-        free(data_);
+    // Random Gaussian Matrix
+    static Matrix<double> randomGaussian(size_t rows, size_t cols, double mean = 0.0, double stddev = 1.0, unsigned int seed = 0) {
+        RandomGenerator rng(seed == 0 ? std::random_device{}() : seed, mean, stddev);
+        Matrix<double> result(rows, cols);
+        for (size_t i = 0; i < rows; ++i) {
+            for (size_t j = 0; j < cols; ++j) {
+                result(i, j) = rng.rand_gaussian();
+            }
+        }
+        return result;
     }
 
     // Copy assignment
     Matrix& operator=(const Matrix& other) {
         if (this != &other) {
-            T* new_data = nullptr;
-            if (other.data_) {
-                new_data = static_cast<T*>(malloc(other.rows_ * other.cols_ * sizeof(T)));
-                if (!new_data) {
-                    throw std::bad_alloc();
-                }
-                std::memcpy(new_data, other.data_, other.rows_ * other.cols_ * sizeof(T));
-            }
-            free(data_);
             rows_ = other.rows_;
             cols_ = other.cols_;
-            data_ = new_data;
+            data_ = other.data_;
         }
         return *this;
     }
@@ -75,13 +59,11 @@ public:
     // Move assignment
     Matrix& operator=(Matrix&& other) noexcept {
         if (this != &other) {
-            free(data_);
             rows_ = other.rows_;
             cols_ = other.cols_;
-            data_ = other.data_;
+            data_ = std::move(other.data_);
             other.rows_ = 0;
             other.cols_ = 0;
-            other.data_ = nullptr;
         }
         return *this;
     }
@@ -91,7 +73,7 @@ public:
         if (i >= rows_ || j >= cols_) {
             throw std::out_of_range("Matrix index out of bounds");
         }
-        return data_[i * cols_ + j]; // Row-major indexing
+        return data_[i * cols_ + j];
     }
 
     // Getter: Const element access
@@ -119,7 +101,7 @@ public:
     }
 
     // Matrix Transpose
-    Matrix<T> operator ~() const {
+    Matrix<T> operator~() const {
         Matrix<T> result(cols_, rows_);
         for (size_t i = 0; i < cols_; ++i) {
             for (size_t j = 0; j < rows_; ++j) {
@@ -134,7 +116,7 @@ public:
         if (rows == 0 || cols == 0) {
             throw std::invalid_argument("Matrix dimensions must be positive");
         }
-        return Matrix<T>(rows, cols); // Constructor initializes to 0
+        return Matrix<T>(rows, cols);
     }
 
     // Static function: Create identity matrix
@@ -203,14 +185,7 @@ public:
         if (rows_ != other.rows_ || cols_ != other.cols_) {
             return false;
         }
-        for (size_t i = 0; i < rows_; ++i) {
-            for (size_t j = 0; j < cols_; ++j) {
-                if ((*this)(i, j) != other(i, j)) {
-                    return false;
-                }
-            }
-        }
-        return true;
+        return data_ == other.data_;
     }
 
     // Stream output
